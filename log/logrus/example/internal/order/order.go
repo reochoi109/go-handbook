@@ -1,6 +1,10 @@
 package order
 
-import "github.com/sirupsen/logrus"
+import (
+	"context"
+
+	"github.com/sirupsen/logrus"
+)
 
 type OrderService struct {
 	log *logrus.Entry
@@ -12,6 +16,14 @@ func NewOrderService(baseLogger *logrus.Logger) *OrderService {
 	}
 }
 
+func (s *OrderService) CreateOrderWithContext(ctx context.Context) {
+	traceID, _ := ctx.Value("trace_id").(string)
+
+	s.log.WithFields(logrus.Fields{
+		"trace_id": traceID,
+	}).Info("Order creation process started (with context)")
+}
+
 func (s *OrderService) CreateOrder() {
-	s.log.Info("주문 생성 프로세스 시작")
+	s.log.Info("Order creation process started")
 }

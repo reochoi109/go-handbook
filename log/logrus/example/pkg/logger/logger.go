@@ -1,4 +1,4 @@
-package pkg
+package logger
 
 import (
 	"os"
@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewLogger() *logrus.Logger {
+func New() *logrus.Logger {
 	log := logrus.New()
 	log.SetOutput(os.Stdout)
 	log.SetFormatter(&logrus.JSONFormatter{})
