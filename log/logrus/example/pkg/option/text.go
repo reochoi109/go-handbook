@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func TextFormatFn() {
+func TextFormat() {
 	log := logrus.New()
 
 	log.SetFormatter(&logrus.TextFormatter{

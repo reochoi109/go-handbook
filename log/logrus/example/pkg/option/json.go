@@ -6,13 +6,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func JsonFormatFn() {
+func JsonFormat() {
 	log := logrus.New()
 
 	log.SetFormatter(&logrus.JSONFormatter{
 		TimestampFormat: "2006-01-02 15:04:05.000", // 시간 포맷 정의
 		FieldMap: logrus.FieldMap{
-			logrus.FieldKeyTime:  "timestamp", // JSON 내 키 이름 변경 가능 (예: time -> timestamp)
+			logrus.FieldKeyTime:  "timestamp", // JSON 내 키 이름 변경
 			logrus.FieldKeyLevel: "level",
 			logrus.FieldKeyMsg:   "message",
 			logrus.FieldKeyFunc:  "caller",
