@@ -15,7 +15,7 @@ import (
  - LevelInfo   (0) : 시스템의 주요 동작 정보 (Info)
  - LevelWarn   (4) : 주의가 필요한 비정상 징후 (Warn)
  - LevelError  (8) : 기능 장애 및 에러 상황 (Error)
- - LevelFatal (12) : 시스템 가동 불가능 상태 (Fatal)
+ - LevelCritical (12) : 시스템 가동 불가능 상태 (Critical)
 
  설정한 Level 값보다 같거나 큰 로그만 출력됩니다.
 */
@@ -23,7 +23,7 @@ import (
 // 1. 커스텀 레벨 정의
 const (
 	LevelTrace = slog.Level(-8)
-	LevelFatal = slog.Level(12)
+	LevelCritical = slog.Level(12)
 )
 
 func main() {
@@ -38,5 +38,5 @@ func main() {
 	logger.Info("시스템 정보: 서버가 8080 포트에서 시작됨")
 	logger.Warn("잠재적 위험: 외부 API 응답이 2초 이상 지연됨")
 	logger.Error("에러 발생: 주문 데이터 저장 실패")
-	logger.Log(context.Background(), LevelFatal, "시스템 중단: 설정 파일(config.yaml)을 찾을 수 없음!")
+	logger.Log(context.Background(), LevelCritical, "치명적 상태: 설정 파일(config.yaml)을 찾을 수 없음!")
 }

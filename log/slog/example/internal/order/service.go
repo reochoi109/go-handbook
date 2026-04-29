@@ -14,9 +14,6 @@ func NewService(base *slog.Logger) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, id string) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	s.log.InfoContext(ctx, "Order created", "order_id", id)
 }
 

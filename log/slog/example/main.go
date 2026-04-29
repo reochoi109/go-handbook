@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/reochoi109/go-handbook/log/slog/example/internal/order"
 	"github.com/reochoi109/go-handbook/log/slog/example/internal/user"
@@ -14,6 +13,9 @@ import (
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	logLevel := slog.LevelInfo
 	if os.Getenv("APP_ENV") == "development" {
 		logLevel = slog.LevelDebug
@@ -22,9 +24,10 @@ func main() {
 	baseLogger := logger.New(logLevel)
 	slog.SetDefault(baseLogger)
 
-	baseLogger.Info("App Start.",
+	baseLogger.InfoContext(ctx, "App Start.",
 		"version", "1.0.0",
 		"env", os.Getenv("APP_ENV"),
+		"log_format", os.Getenv("LOG_FORMAT"),
 	)
 
 	// 로거를 각 도메인 서비스에 주입
@@ -32,17 +35,14 @@ func main() {
 	userSvc := user.NewService(baseLogger)
 
 	// 비즈니스 로직 실행
-	ctx := context.Background()
-
 	userSvc.SignUp(ctx, "Reo")
 	orderSvc.Create(ctx, "ORD-2026-0427")
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	if os.Getenv("EXIT_AFTER") == "1" {
+		baseLogger.InfoContext(ctx, "App Exit (demo).")
+		return
+	}
 
-	<-quit
-
-	baseLogger.Info("App Shutdown.")
-
-	time.Sleep(500 * time.Millisecond)
+	<-ctx.Done()
+	baseLogger.InfoContext(context.Background(), "App Shutdown.", "reason", ctx.Err())
 }

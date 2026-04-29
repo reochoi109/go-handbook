@@ -16,9 +16,6 @@ func NewService(base *slog.Logger) *Service {
 }
 
 func (s *Service) SignUp(ctx context.Context, username string) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	s.log.InfoContext(ctx, "User sign-up requested", "username", username)
 }
 
