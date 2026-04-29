@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -50,15 +51,42 @@ func main() {
 }
 
 func fetchProfile(ctx context.Context) (string, error) {
-	time.Sleep(100 * time.Millisecond)
+	fmt.Println("fetchProfile: start")
+	defer fmt.Println("fetchProfile: end")
+
+	select {
+	case <-time.After(100 * time.Millisecond):
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 	return "User: Name", nil
 }
 
 func fetchOrders(ctx context.Context) (string, error) {
-	time.Sleep(150 * time.Millisecond)
+	fmt.Println("fetchOrders: start")
+	defer fmt.Println("fetchOrders: end")
+
+	select {
+	case <-time.After(150 * time.Millisecond):
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+
+	// FAIL_ORDERS=1 이면 실패 → errgroup 컨텍스트 cancel 전파 확인
+	if os.Getenv("FAIL_ORDERS") == "1" {
+		return "", fmt.Errorf("orders service unavailable")
+	}
 	return "Orders: 3 items", nil
 }
 
 func fetchHistory(ctx context.Context) (string, error) {
+	fmt.Println("fetchHistory: start")
+	defer fmt.Println("fetchHistory: end")
+
+	select {
+	case <-time.After(250 * time.Millisecond):
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 	return "History: Login at 10:00", nil
 }

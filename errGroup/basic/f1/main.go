@@ -22,6 +22,10 @@ func main() {
 		{"GitHubAPI", "https://api.github.com"},
 	}
 
+	client := &http.Client{
+		Timeout: 4 * time.Second,
+	}
+
 	g, ctx := errgroup.WithContext(context.Background())
 	for _, svc := range services {
 		svc := svc
@@ -37,11 +41,15 @@ func main() {
 
 			req.Header.Set("User-Agent", "Go-Backend-Handbook-Example")
 
-			resp, err := http.DefaultClient.Do(req)
+			resp, err := client.Do(req)
 			if err != nil {
 				return fmt.Errorf("%s 접속 실패: %w", svc.Name, err)
 			}
 			defer resp.Body.Close()
+
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				return fmt.Errorf("%s bad status: %s", svc.Name, resp.Status)
+			}
 
 			fmt.Printf("[%s] 상태: %s\n", svc.Name, resp.Status)
 			return nil
