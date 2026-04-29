@@ -15,30 +15,55 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	var wg sync.WaitGroup
-	server := &http.Server{Addr: ":8080"}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
 
+	server := &http.Server{
+		Addr:              ":8080",
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		fmt.Println("worker: working")
-		<-ctx.Done()
-		fmt.Println("worker: complete")
-	}()
 
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("server error: %v\n", err)
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				fmt.Println("worker: stopping:", ctx.Err())
+				return
+			case <-ticker.C:
+				fmt.Println("worker: tick")
+			}
 		}
 	}()
 
-	<-ctx.Done()
+	go func() {
+		fmt.Println("server: start :8080")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("server error: %v\n", err)
+		}
+		fmt.Println("server: stopped")
+	}()
 
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	<-ctx.Done()
+	fmt.Println("main: signal received:", ctx.Err())
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	server.Shutdown(timeoutCtx)
-	wg.Wait()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		fmt.Printf("server shutdown error: %v\n", err)
+	}
 
+	wg.Wait()
 	fmt.Println("system close")
 }
