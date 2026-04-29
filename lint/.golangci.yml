@@ -1,0 +1,32 @@
+run:
+  timeout: 2m
+  tests: true
+  modules-download-mode: readonly
+
+output:
+  formats:
+    - format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+linters:
+  disable-all: true
+  enable:
+    # base
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+
+    - bodyclose
+    - errorlint
+    - exportloopref
+    - noctx
+    - bidichk
+    - durationcheck
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
