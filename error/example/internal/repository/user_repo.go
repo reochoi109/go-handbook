@@ -9,7 +9,7 @@ import (
 	"github.com/reochoi109/go-handbook/error/example/internal/domain"
 )
 
-var errRowNotFound = errors.New("row not found")
+var ErrRowNotFound = errors.New("row not found")
 
 type UserRepo interface {
 	FindByID(ctx context.Context, id string) (domain.User, error)
@@ -35,7 +35,7 @@ func (r *InMemoryUserRepo) FindByID(ctx context.Context, id string) (domain.User
 	}
 	u, ok := r.users[id]
 	if !ok {
-		return domain.User{}, fmt.Errorf("repo find user id=%s: %w", id, errRowNotFound)
+		return domain.User{}, fmt.Errorf("repo find user id=%s: %w", id, ErrRowNotFound)
 	}
 	return u, nil
 }

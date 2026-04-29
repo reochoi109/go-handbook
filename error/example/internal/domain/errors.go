@@ -8,6 +8,7 @@ const (
 	CodeNotFound     ErrCode = "NOT_FOUND"
 	CodeUnauthorized ErrCode = "UNAUTHORIZED"
 	CodeInvalid      ErrCode = "INVALID"
+	CodeTimeout      ErrCode = "TIMEOUT"
 )
 
 type AppError struct {
@@ -35,4 +36,8 @@ func Unauthorized(op string, err error) error {
 
 func Invalid(op string, err error) error {
 	return &AppError{Code: CodeInvalid, Op: op, Err: err}
+}
+
+func Timeout(op string, err error) error {
+	return &AppError{Code: CodeTimeout, Op: op, Err: err}
 }

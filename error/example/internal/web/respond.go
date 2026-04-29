@@ -27,6 +27,9 @@ func writeErr(w http.ResponseWriter, err error) {
 		case domain.CodeInvalid:
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid"})
 			return
+		case domain.CodeTimeout:
+			writeJSON(w, http.StatusGatewayTimeout, map[string]any{"error": "timeout"})
+			return
 		}
 	}
 	writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "internal"})

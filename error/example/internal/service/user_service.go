@@ -28,10 +28,13 @@ func (s *UserService) Me(ctx context.Context, actorUserID string) (domain.User, 
 
 	u, err := s.repo.FindByID(ctx, actorUserID)
 	if err != nil {
-		if errors.Is(err, errors.New("row not found")) {
+		switch {
+		case errors.Is(err, repository.ErrRowNotFound):
 			return domain.User{}, domain.NotFound("user.me", fmt.Errorf("user not found: %w", err))
+		case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+			return domain.User{}, domain.Timeout("user.me", err)
 		}
-		return domain.User{}, fmt.Errorf("user.me : %w", err)
+		return domain.User{}, fmt.Errorf("user.me: %w", err)
 	}
 	return u, nil
 }
