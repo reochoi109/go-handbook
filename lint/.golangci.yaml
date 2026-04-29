@@ -9,6 +9,14 @@ output:
   print-issued-lines: true
   print-linter-name: true
 
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+
 linters:
   disable-all: true
   enable:
@@ -19,14 +27,23 @@ linters:
     - ineffassign
     - unused
 
+    # hygiene
     - bodyclose
     - errorlint
-    - exportloopref
     - noctx
     - bidichk
     - durationcheck
+    - copyloopvar
+
+    # formatting/imports
+    - gofumpt
+    - goimports
 
 linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: true
+  gofumpt:
+    extra-rules: true
+  goimports:
+    local-prefixes: github.com/reochoi109/go-handbook

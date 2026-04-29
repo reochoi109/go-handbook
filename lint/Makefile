@@ -1,5 +1,4 @@
 .PHONY: lint
 
 lint:
-	GOCACHE=/tmp/gocache golangci-lint run --config ./.golangci.yml ./...
-
+	GOCACHE=/tmp/gocache GOLANGCI_LINT_CACHE=/tmp/golangci-lint golangci-lint run --config ./.golangci.yaml ./...
