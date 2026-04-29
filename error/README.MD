@@ -3,11 +3,11 @@
 ## Run
 
 ```bash
-GOCACHE=/tmp/gocache go run ./errors/basic
+GOCACHE=/tmp/gocache go run ./error/basic
 ```
 
 ```bash
-GOCACHE=/tmp/gocache go run ./errors/example
+GOCACHE=/tmp/gocache go run ./error/example
 ```
 
 ```bash
