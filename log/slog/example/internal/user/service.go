@@ -16,9 +16,13 @@ func NewService(base *slog.Logger) *Service {
 }
 
 func (s *Service) SignUp(ctx context.Context, username string) {
-	s.log.InfoContext(ctx, "User sign-up requested", "username", username)
+    s.log.InfoContext(ctx, "User sign-up requested", 
+        slog.Group("user",
+            slog.String("name", username),
+            slog.String("status", "pending"),
+        ),
+    )
 }
-
 func (s *Service) SignUpSimple(username string) {
 	s.log.Info("User sign-up requested (simple log)", "username", username)
 }

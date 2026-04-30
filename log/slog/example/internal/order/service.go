@@ -14,7 +14,12 @@ func NewService(base *slog.Logger) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, id string) {
-	s.log.InfoContext(ctx, "Order created", "order_id", id)
+	s.log.InfoContext(ctx, "Order created", 
+			slog.Group("order", 
+				slog.String("id", id),
+				slog.String("status", "created"),
+		),
+    )
 }
 
 func (s *Service) CreateSimple(id string) {
