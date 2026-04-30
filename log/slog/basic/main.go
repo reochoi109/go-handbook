@@ -38,5 +38,17 @@ func main() {
 	logger.Info("시스템 정보: 서버가 8080 포트에서 시작됨")
 	logger.Warn("잠재적 위험: 외부 API 응답이 2초 이상 지연됨")
 	logger.Error("에러 발생: 주문 데이터 저장 실패")
-	logger.Log(context.Background(), LevelCritical, "치명적 상태: 설정 파일(config.yaml)을 찾을 수 없음!")
+	logger.Log(context.Background(), LevelCritical, "크리티컬")
+
+	// 4. Group
+	logger.Warn("주문 처리 지연 발생",
+        slog.Group("order",
+            slog.String("id", "ORD-2026-0430"),
+            slog.Int("amount", 50000),
+            slog.String("status", "pending"),
+        ),
+        slog.String("reason", "external_api_timeout"),
+    )
+	logger.Error("에러 발생: 주문 데이터 저장 실패")
+  	logger.Log(context.Background(), LevelCritical, "크리티컬")
 }
