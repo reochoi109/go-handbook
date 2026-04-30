@@ -1,51 +1,31 @@
 package main
 
 import (
+	"compress/gzip"
 	"errors"
 	"fmt"
+	"os"
 )
 
-var (
-	ErrMissingName = errors.New("missing name")
-	ErrInvalidAge  = errors.New("invalid age")
-)
-
-func main() {
-	err := validateAll("", -1)
-
+func writeGzipFile(path string, data []byte) (err error) {
+	f, err := os.Create(path)
 	if err != nil {
-		fmt.Println("--- Full Error Message ---")
-		fmt.Println(err)
-
-		fmt.Println("\n--- Identifying Individual Errors ---")
-
-		// join 이라고 하더라도 errors.Is는 내부를 순회하며 에러를 찾는다.
-		if errors.Is(err, ErrMissingName) {
-			fmt.Println("Check: 'Missing Name' error is present.")
-		}
-		if errors.Is(err, ErrInvalidAge) {
-			fmt.Println("Check: 'Invalid Age' error is present.")
-		}
-
-		// Go 1.20+ join error -> []error
-		fmt.Println("\n--- Iterating Through Error List ---")
-		if errs, ok := err.(interface{ Unwrap() []error }); ok {
-			for i, e := range errs.Unwrap() {
-				fmt.Printf("[%d] Individual Log: %v\n", i+1, e)
-			}
-		}
+		return err
 	}
+
+	gz := gzip.NewWriter(f)
+
+	defer func() {
+		err = errors.Join(err, gz.Close(), f.Close())
+	}()
+
+	if _, err := gz.Write(data); err != nil {
+		return fmt.Errorf("gzip write: %w", err)
+	}
+
+	return nil
 }
 
-func validateAll(name string, age int) error {
-	var errs []error
-
-	if name == "" {
-		errs = append(errs, ErrMissingName)
-	}
-	if age < 0 {
-		errs = append(errs, ErrInvalidAge)
-	}
-
-	return errors.Join(errs...)
+func main() {
+	fmt.Println(writeGzipFile("out.txt.gz", []byte("hello\n")))
 }
