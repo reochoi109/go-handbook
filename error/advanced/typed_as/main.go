@@ -5,22 +5,6 @@ import (
 	"fmt"
 )
 
-func main() {
-	err := doThing()
-	fmt.Println("err:", err)
-
-	var vErr *ValidationError
-	// 에러 데이터 추출 (ValidationError -> vErr 할당)
-	if errors.As(err, &vErr) {
-		fmt.Println("as ValidationError:", "field=", vErr.Field, "msg=", vErr.Msg)
-	}
-
-	// 2. 에러 확인
-	if errors.Is(err, ErrInvalidInput) {
-		fmt.Println("is ErrInvalidInput: true")
-	}
-}
-
 var ErrInvalidInput = errors.New("invalid input")
 
 type ValidationError struct {
@@ -30,15 +14,33 @@ type ValidationError struct {
 }
 
 func (e *ValidationError) Error() string {
-	return fmt.Sprintf("validation: field=%s msg=%s: %v", e.Field, e.Msg, e.Err)
+	return fmt.Sprintf("field %s: %s", e.Field, e.Msg)
 }
 
 func (e *ValidationError) Unwrap() error { return e.Err }
 
-func doThing() error {
-	return &ValidationError{
-		Field: "email",
-		Msg:   "missing @",
-		Err:   ErrInvalidInput,
+func RegisterUser(email string) error {
+	if email == "" {
+		return &ValidationError{
+			Field: "email",
+			Msg:   "Email address is a required field.",
+			Err:   ErrInvalidInput,
+		}
+	}
+	return nil
+}
+
+func main() {
+	err := RegisterUser("")
+
+	if err != nil {
+		var vErr *ValidationError
+		if errors.As(err, &vErr) {
+			fmt.Printf("HTTP 400 - Client Response: [%s] Field Error: %s\n", vErr.Field, vErr.Msg)
+		}
+
+		if errors.Is(err, ErrInvalidInput) {
+			fmt.Println("System Log: Request rejected due to invalid input values.")
+		}
 	}
 }
