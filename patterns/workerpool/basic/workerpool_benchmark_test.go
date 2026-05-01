@@ -9,147 +9,111 @@ import (
 func BenchmarkWorkerPool(b *testing.B) {
 	for _, workers := range []int{1, 2, 4, 8} {
 		b.Run("workers="+itoaBench(workers), func(b *testing.B) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			jobs := make(chan int, 1024)
-			results := make(chan int, 1024)
-
-			var wg sync.WaitGroup
-			wg.Add(workers)
-
-			for w := 0; w < workers; w++ {
-				go func() {
-					defer wg.Done()
-					for {
-						select {
-						case <-ctx.Done():
-							return
-						case job, ok := <-jobs:
-							if !ok {
-								return
-							}
-							// simulate "some work" without sleeping
-							results <- job * job
-						}
-					}
-				}()
-			}
-
-			go func() {
-				wg.Wait()
-				close(results)
-			}()
-
-			drainDone := make(chan struct{})
-			go func() {
-				for range results {
-				}
-				close(drainDone)
-			}()
-
-			b.ResetTimer()
-
-			for i := 0; i < b.N; i++ {
-				jobs <- i
-			}
-			close(jobs)
-
-			<-drainDone
+			runWorkerPool(b, workers, func(job int) int { return job * job })
 		})
 	}
 }
 
 func BenchmarkBoundedVsUnbounded(b *testing.B) {
-	b.Run("unbounded", func(b *testing.B) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+	work := func(job int) int { return job * job }
 
-		results := make(chan int, 1024)
-
-		var wg sync.WaitGroup
-		wg.Add(b.N)
-
-		go func() {
-			wg.Wait()
-			close(results)
-		}()
-
-		drainDone := make(chan struct{})
-		go func() {
-			for range results {
-			}
-			close(drainDone)
-		}()
-
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			i := i
-			go func() {
-				defer wg.Done()
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-				results <- i * i
-			}()
-		}
-
-		<-drainDone
-	})
+	b.Run("unbounded", func(b *testing.B) { runUnbounded(b, work) })
 
 	for _, workers := range []int{4, 8} {
 		b.Run("workerpool/workers="+itoaBench(workers), func(b *testing.B) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			jobs := make(chan int, 1024)
-			results := make(chan int, 1024)
-
-			var wg sync.WaitGroup
-			wg.Add(workers)
-
-			for w := 0; w < workers; w++ {
-				go func() {
-					defer wg.Done()
-					for {
-						select {
-						case <-ctx.Done():
-							return
-						case job, ok := <-jobs:
-							if !ok {
-								return
-							}
-							results <- job * job
-						}
-					}
-				}()
-			}
-
-			go func() {
-				wg.Wait()
-				close(results)
-			}()
-
-			drainDone := make(chan struct{})
-			go func() {
-				for range results {
-				}
-				close(drainDone)
-			}()
-
-			b.ResetTimer()
-
-			for i := 0; i < b.N; i++ {
-				jobs <- i
-			}
-			close(jobs)
-
-			<-drainDone
+			runWorkerPool(b, workers, work)
 		})
 	}
+}
+
+func runWorkerPool(b *testing.B, workers int, work func(int) int) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	const bufSize = 1024
+	jobs := make(chan int, bufSize)
+	results := make(chan int, bufSize)
+
+	var wg sync.WaitGroup
+	wg.Add(workers)
+
+	for w := 0; w < workers; w++ {
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case job, ok := <-jobs:
+					if !ok {
+						return
+					}
+					results <- work(job)
+				}
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	drainDone := make(chan struct{})
+	go func() {
+		for range results {
+		}
+		close(drainDone)
+	}()
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		jobs <- i
+	}
+	close(jobs)
+
+	<-drainDone
+}
+
+func runUnbounded(b *testing.B, work func(int) int) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	const bufSize = 1024
+	results := make(chan int, bufSize)
+
+	var wg sync.WaitGroup
+	wg.Add(b.N)
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	drainDone := make(chan struct{})
+	go func() {
+		for range results {
+		}
+		close(drainDone)
+	}()
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		job := i
+		go func() {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			results <- work(job)
+		}()
+	}
+
+	<-drainDone
 }
 
 func itoaBench(n int) string {
