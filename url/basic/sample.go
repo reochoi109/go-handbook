@@ -6,53 +6,28 @@ import (
 )
 
 func sample() {
-	// --- 1. url.Values: 쿼리 스트링 조작 (map[string][]string 기반) ---
 	v := url.Values{}
 
-	// Set: 값을 설정 (기존 값은 덮어씀)
-	v.Set("id", "reo109")
-	v.Set("mode", "dark")
+	// --- 쿼리 값 조작 ---
+	v.Set("id", "reo109")   // 값 설정: 기존에 "id"가 있다면 덮어쓰고, 없으면 새로 만듭니다.
+	v.Add("tag", "go")      // 값 추가: 기존 "tag"를 유지하며 새로운 값을 리스트에 추가합니다.
+	v.Add("tag", "backend") // 결과: tag=go&tag=backend (하나의 키에 여러 값)
+	v.Get("tag")            // 값 가져오기: 해당 키의 "첫 번째" 값만 반환합니다. (결과: "go")
+	v.Has("mode")           // 존재 확인: 특정 키가 있는지 확인합니다. (Go 1.17+, 결과: false)
+	v.Del("id")             // 값 삭제: 해당 키와 연결된 모든 값을 지웁니다.
+	v.Encode()              // 인코딩: 전체 데이터를 "key=value&..." 형태의 문자열로 변환합니다.
 
-	// Add: 동일한 키에 값을 추가 (배열 형태로 저장됨)
-	v.Add("tag", "go")
-	v.Add("tag", "backend")
-	v.Add("tag", "handbook")
+	// --- URL 구조체 및 경로 조작 ---
+	u, _ := url.Parse("https://example.com")
+	u.JoinPath("api", "v1") // 경로 결합: 슬래시(/) 중복을 방지하며 경로를 안전하게 붙입니다. (Go 1.19+)
+	u.String()              // 문자열 변환: 전체 URL 구조체를 하나의 문자열로 반환합니다.
+	u.RequestURI()          // URI 추출: 호스트를 제외한 "/path?query" 부분만 가져옵니다.
 
-	// Get: 첫 번째 값만 가져옴
-	fmt.Println("Tag Get:", v.Get("tag")) // 출력: go
+	// --- 인코딩 유틸리티 (Escape) ---
+	url.QueryEscape("a&b c") // 쿼리용 인코딩: 특수문자와 공백을 쿼리 규격에 맞게 변환합니다. (결과: a%26b+c)
+	url.PathEscape("a&b c")  // 경로용 인코딩: URL 경로 규격에 맞게 변환합니다. (결과: a%26b%20c)
 
-	// Has: 키 존재 여부 확인 (Go 1.17+)
-	fmt.Println("Has mode:", v.Has("mode")) // 출력: true
-
-	// Del: 해당 키의 모든 값 삭제
-	v.Del("mode")
-
-	// Encode: 알파벳 순서로 정렬하여 인코딩된 문자열 반환
-	fmt.Println("Encoded Query:", v.Encode())
-	// 출력: id=reo109&tag=go&tag=backend&tag=handbook
-
-	// --- 2. url.URL: 경로 및 URI 조작 ---
-	u, _ := url.Parse("https://example.com/api/v1/users")
-
-	// JoinPath: 경로를 안전하게 결합 (Go 1.19+, 슬래시 중복 해결)
-	newUrl := u.JoinPath("profile", "settings")
-	fmt.Println("Joined Path:", newUrl.String())
-	// 출력: https://example.com/api/v1/users/profile/settings
-
-	// RequestURI: 스키마/호스트를 제외한 경로+쿼리 반환 (HTTP 요청 시 유용)
-	u.RawQuery = v.Encode()
-	fmt.Println("RequestURI:", u.RequestURI())
-	// 출력: /api/v1/users?id=reo109&tag=go&tag=backend&tag=handbook
-
-	// --- 3. Escape 유틸리티: 독립적인 인코딩/디코딩 ---
-	// QueryEscape: 쿼리 스트링용 인코딩 (공백을 +로 변환)
-	text := "hello world & go"
-	escaped := url.QueryEscape(text)
-	fmt.Println("QueryEscape:", escaped)
-	// 출력: hello+world+%26+go
-
-	// PathEscape: URL 경로용 인코딩 (공백을 %20으로 변환)
-	pathEscaped := url.PathEscape(text)
-	fmt.Println("PathEscape:", pathEscaped)
-	// 출력: hello%20world%20%26%20go
+	// 확인용 출력
+	fmt.Println("Final Query:", v.Encode())
+	fmt.Println("Full URL:", u.String())
 }
