@@ -1,30 +1,39 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
+	"os"
 	"strings"
 )
 
 func main() {
-	combined := io.MultiReader(
-		strings.NewReader("hello "),
-		strings.NewReader("world"),
-		strings.NewReader("\n"),
-	)
+	inputData := "Backend developer Reo's Tech Log: io.MultiWriter Example Data"
+	reader := strings.NewReader(inputData)
 
-	var tapped bytes.Buffer
-	hash := sha256.New()
+	consoleWriter := os.Stdout
 
-	// TeeReader로 읽히는 바이트를 side writer들에 복사
-	tee := io.TeeReader(combined, io.MultiWriter(&tapped, hash))
+	logFile, err := os.Create("process.log")
+	if err != nil {
+		log.Fatalf("Failed to create file: %v", err)
+	}
+	defer logFile.Close()
 
-	limited := io.LimitReader(tee, 11) // "hello world"만 읽기
-	b, _ := io.ReadAll(limited)
+	hashWriter := sha256.New()
 
-	fmt.Print("read: " + string(b) + "\n")
-	fmt.Print("tapped: " + tapped.String() + "\n")
-	fmt.Printf("sha256: %x\n", hash.Sum(nil))
+	multi := io.MultiWriter(consoleWriter, logFile, hashWriter)
+
+	written, err := io.Copy(multi, reader)
+	if err != nil {
+		log.Fatalf("Error occurred during writing: %v", err)
+	}
+
+	fmt.Printf("\nWriting completed (%d bytes)\n", written)
+
+	hashInBytes := hashWriter.Sum(nil)
+	hashString := hex.EncodeToString(hashInBytes)
+	fmt.Printf("Generated SHA256 Hash: %s\n", hashString)
 }

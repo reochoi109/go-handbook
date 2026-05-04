@@ -1,36 +1,59 @@
 package main
 
 import (
-	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
+	"log"
+	"os"
 )
 
 func main() {
-	plain := []byte("hello gzip\nhello gzip\n")
+	content := "User: Reo\nStatus: Backend Developer\nLog: Gzip compression test for technical blog.\n"
+	filename := "data.gz"
 
-	var compressed bytes.Buffer
-	zw := gzip.NewWriter(&compressed)
-	if _, err := zw.Write(plain); err != nil {
-		panic(err)
-	}
-	// 중요: Close 해야 gzip 스트림이 완성됨
-	if err := zw.Close(); err != nil {
-		panic(err)
+	// 1. Compression Process
+	if err := compressToFile(content, filename); err != nil {
+		log.Fatal(err)
 	}
 
-	fmt.Println("compressed bytes:", compressed.Len())
+	// 2. Decompression Process
+	if err := decompressAndPrint(filename); err != nil {
+		log.Fatal(err)
+	}
+}
 
-	zr, err := gzip.NewReader(bytes.NewReader(compressed.Bytes()))
+func compressToFile(data string, filename string) error {
+	file, err := os.Create(filename)
 	if err != nil {
-		panic(err)
+		return err
+	}
+	defer file.Close()
+
+	// Use gzip.BestCompression for maximum space saving
+	zw, _ := gzip.NewWriterLevel(file, gzip.BestCompression)
+	defer zw.Close()
+
+	_, err = io.WriteString(zw, data)
+	fmt.Printf("File saved: %s\n", filename)
+	return err
+}
+
+func decompressAndPrint(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	zr, err := gzip.NewReader(file)
+	if err != nil {
+		return err
 	}
 	defer zr.Close()
 
-	out, err := io.ReadAll(zr)
-	if err != nil {
-		panic(err)
+	if _, err := io.Copy(os.Stdout, zr); err != nil {
+		return err
 	}
-	fmt.Print("decompressed:\n" + string(out))
+	return nil
 }
