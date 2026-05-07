@@ -23,7 +23,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	// 서버 실행
 	go func() {
 		if err := runServer(ctx); err != nil && !errors.Is(err, net.ErrClosed) {
 			fmt.Printf("[Server Err] %v\n", err)
@@ -31,8 +30,6 @@ func main() {
 	}()
 
 	time.Sleep(500 * time.Millisecond)
-
-	// 클라이언트 실행
 	if err := runClient(ctx); err != nil {
 		fmt.Printf("[Client Err] %v\n", err)
 	}
@@ -65,7 +62,7 @@ func handleServerConn(c net.Conn) {
 	fmt.Printf("[Server] Connected: %s\n", c.RemoteAddr())
 
 	for {
-		// 1. 프레임 읽기
+		// read frame
 		_ = c.SetReadDeadline(time.Now().Add(networkDeadline))
 		msg, err := readFrame(c)
 		if err != nil {
@@ -77,7 +74,6 @@ func handleServerConn(c net.Conn) {
 
 		fmt.Printf("[Server] Recv: %s\n", string(msg))
 
-		// 2. 응답 프레임 쓰기
 		_ = c.SetWriteDeadline(time.Now().Add(networkDeadline))
 		resp := "ACK:" + string(msg)
 		if err := writeFrame(c, []byte(resp)); err != nil {
@@ -114,37 +110,34 @@ func runClient(ctx context.Context) error {
 	return nil
 }
 
-// writeFrame은 [4바이트 길이][데이터] 형태로 전송합니다.
 func writeFrame(w io.Writer, payload []byte) error {
 	if len(payload) > maxPayloadSize {
 		return fmt.Errorf("payload too large: %d", len(payload))
 	}
 
-	// 성능 최적화: 헤더와 페이로드를 담을 버퍼 한 번에 할당
+	// 헤더와 페이로드를 담을 버퍼 한 번에 할당
 	buf := make([]byte, headerSize+len(payload))
 	binary.BigEndian.PutUint32(buf[:headerSize], uint32(len(payload)))
 	copy(buf[headerSize:], payload)
 
-	// bufio.Writer를 매번 생성하는 것보다 직접 Write하는 것이 이 경우 더 빠를 수 있음
 	_, err := w.Write(buf)
 	return err
 }
 
-// readFrame은 헤더를 먼저 읽고 그 길이만큼 데이터를 읽어 반환합니다.
 func readFrame(r io.Reader) ([]byte, error) {
-	// 1. 헤더(4바이트) 읽기
+	// 1. header
 	header := make([]byte, headerSize)
 	if _, err := io.ReadFull(r, header); err != nil {
 		return nil, err
 	}
 
-	// 2. 길이 해석
+	// 2. length
 	length := binary.BigEndian.Uint32(header)
 	if length > maxPayloadSize {
 		return nil, fmt.Errorf("frame size limit exceeded: %d", length)
 	}
 
-	// 3. 페이로드 읽기
+	// 3. payload
 	payload := make([]byte, length)
 	if _, err := io.ReadFull(r, payload); err != nil {
 		return nil, err

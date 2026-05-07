@@ -26,7 +26,6 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	// 1. 서버 시작
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -37,7 +36,6 @@ func main() {
 
 	time.Sleep(100 * time.Millisecond)
 
-	// 2. 클라이언트 시작
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -50,7 +48,6 @@ func main() {
 	fmt.Println("시스템이 안전하게 종료되었습니다.")
 }
 
-// runServer는 실제 TCP 리스너를 생성하고 연결을 수락합니다.
 func runServer(ctx context.Context) error {
 	lc := net.ListenConfig{}
 	ln, err := lc.Listen(ctx, "tcp", addr)
@@ -61,7 +58,6 @@ func runServer(ctx context.Context) error {
 
 	fmt.Printf("[Server] %s 에서 대기 중...\n", addr)
 
-	// Context 취소 시 리스너 닫기
 	go func() {
 		<-ctx.Done()
 		ln.Close()
@@ -81,7 +77,6 @@ func handleConnection(c net.Conn) {
 	remoteAddr := c.RemoteAddr().String()
 	r := bufio.NewReader(c)
 
-	// 클라이언트 인터벌(2초)보다 넉넉하게 타임아웃 설정 (예: 10초)
 	const idleTimeout = 10 * time.Second
 
 	for {
@@ -107,7 +102,6 @@ func handleConnection(c net.Conn) {
 	}
 }
 
-// runClient는 서버에 연결하여 데이터를 전송합니다.
 func runClient(ctx context.Context) error {
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "tcp", addr)
@@ -118,7 +112,6 @@ func runClient(ctx context.Context) error {
 
 	fmt.Println("[Client] 서버에 연결되었습니다. 2초 간격으로 Ping을 보냅니다.")
 
-	// 2초마다 신호를 주는 티커 생성
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -126,7 +119,7 @@ func runClient(ctx context.Context) error {
 
 	for {
 		select {
-		case <-ctx.Done(): // Context 종료 시 (Ctrl+C 등) 루프 탈출
+		case <-ctx.Done():
 			fmt.Println("[Client] 통신을 중단합니다.")
 			return nil
 		case t := <-ticker.C:
