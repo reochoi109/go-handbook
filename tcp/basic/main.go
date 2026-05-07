@@ -45,7 +45,6 @@ func main() {
 	}()
 
 	wg.Wait()
-	fmt.Println("시스템이 안전하게 종료되었습니다.")
 }
 
 func runServer(ctx context.Context) error {
@@ -56,7 +55,7 @@ func runServer(ctx context.Context) error {
 	}
 	defer ln.Close()
 
-	fmt.Printf("[Server] %s 에서 대기 중...\n", addr)
+	fmt.Printf("[Server] %s waiting...\n", addr)
 
 	go func() {
 		<-ctx.Done()
@@ -85,9 +84,9 @@ func handleConnection(c net.Conn) {
 		line, err := r.ReadString('\n')
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				fmt.Printf("[Server] 클라이언트가 연결을 종료했습니다: %s\n", remoteAddr)
+				fmt.Printf("[Server] client close : %s\n", remoteAddr)
 			} else {
-				fmt.Printf("[Server] 에러 또는 타임아웃 발생 (%s): %v\n", remoteAddr, err)
+				fmt.Printf("[Server] error or timeout (%s): %v\n", remoteAddr, err)
 			}
 			return
 		}
@@ -110,8 +109,6 @@ func runClient(ctx context.Context) error {
 	}
 	defer conn.Close()
 
-	fmt.Println("[Client] 서버에 연결되었습니다. 2초 간격으로 Ping을 보냅니다.")
-
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -120,7 +117,7 @@ func runClient(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("[Client] 통신을 중단합니다.")
+			fmt.Println("[Client] conntection close.")
 			return nil
 		case t := <-ticker.C:
 			// 1. Ping 전송
@@ -137,7 +134,7 @@ func runClient(ctx context.Context) error {
 				return fmt.Errorf("read error: %w", err)
 			}
 
-			fmt.Printf("[Client] %s -> 서버 응답: %s", t.Format("15:04:05"), resp)
+			fmt.Printf("[Client] %s -> srv response: %s", t.Format("15:04:05"), resp)
 		}
 	}
 }
