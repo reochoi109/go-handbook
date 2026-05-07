@@ -1,86 +1,154 @@
 package main
 
 import (
-	"bufio"
+	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"os/signal"
 	"time"
 )
 
-func main() {
-	srv, cli := net.Pipe()
-	defer srv.Close()
-	defer cli.Close()
+const (
+	addr            = "127.0.0.1:9090"
+	maxPayloadSize  = 1 * 1024 * 1024 // 1MB로 제한 (보안)
+	headerSize      = 4               // uint32 (4 bytes)
+	networkDeadline = 5 * time.Second
+)
 
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	// 서버 실행
 	go func() {
-		_ = server(srv)
+		if err := runServer(ctx); err != nil && !errors.Is(err, net.ErrClosed) {
+			fmt.Printf("[Server Err] %v\n", err)
+		}
 	}()
 
-	if err := client(cli); err != nil {
-		fmt.Println("client err:", err)
+	time.Sleep(500 * time.Millisecond)
+
+	// 클라이언트 실행
+	if err := runClient(ctx); err != nil {
+		fmt.Printf("[Client Err] %v\n", err)
 	}
 }
 
-func server(c net.Conn) error {
-	_ = c.SetDeadline(time.Now().Add(800 * time.Millisecond))
-
-	msg, err := readFrame(c)
+func runServer(ctx context.Context) error {
+	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
-	fmt.Println("server recv:", string(msg))
+	defer ln.Close()
 
-	// 응답도 프레임으로
-	return writeFrame(c, []byte("ack:"+string(msg)))
+	go func() {
+		<-ctx.Done()
+		ln.Close()
+	}()
+
+	fmt.Println("[Server] Listening on", addr)
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			return err
+		}
+		go handleServerConn(conn)
+	}
 }
 
-func client(c net.Conn) error {
-	_ = c.SetDeadline(time.Now().Add(800 * time.Millisecond))
+func handleServerConn(c net.Conn) {
+	defer c.Close()
+	fmt.Printf("[Server] Connected: %s\n", c.RemoteAddr())
 
-	if err := writeFrame(c, []byte("hello")); err != nil {
-		return err
+	for {
+		// 1. 프레임 읽기
+		_ = c.SetReadDeadline(time.Now().Add(networkDeadline))
+		msg, err := readFrame(c)
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				fmt.Printf("[Server] Read Error: %v\n", err)
+			}
+			return
+		}
+
+		fmt.Printf("[Server] Recv: %s\n", string(msg))
+
+		// 2. 응답 프레임 쓰기
+		_ = c.SetWriteDeadline(time.Now().Add(networkDeadline))
+		resp := "ACK:" + string(msg)
+		if err := writeFrame(c, []byte(resp)); err != nil {
+			fmt.Printf("[Server] Write Error: %v\n", err)
+			return
+		}
 	}
+}
 
-	resp, err := readFrame(c)
+func runClient(ctx context.Context) error {
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return err
 	}
-	fmt.Println("client recv:", string(resp))
+	defer conn.Close()
+
+	payload := []byte("Hello Framing Protocol")
+
+	// 전송
+	_ = conn.SetWriteDeadline(time.Now().Add(networkDeadline))
+	if err := writeFrame(conn, payload); err != nil {
+		return err
+	}
+
+	// 응답 대기
+	_ = conn.SetReadDeadline(time.Now().Add(networkDeadline))
+	resp, err := readFrame(conn)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("[Client] Recv: %s\n", string(resp))
 	return nil
 }
 
+// writeFrame은 [4바이트 길이][데이터] 형태로 전송합니다.
 func writeFrame(w io.Writer, payload []byte) error {
-	// 프레임: [len(uint32)][payload...]
-	var hdr [4]byte
-	binary.BigEndian.PutUint32(hdr[:], uint32(len(payload)))
+	if len(payload) > maxPayloadSize {
+		return fmt.Errorf("payload too large: %d", len(payload))
+	}
 
-	bw := bufio.NewWriter(w)
-	if _, err := bw.Write(hdr[:]); err != nil {
-		return err
-	}
-	if _, err := bw.Write(payload); err != nil {
-		return err
-	}
-	return bw.Flush()
+	// 성능 최적화: 헤더와 페이로드를 담을 버퍼 한 번에 할당
+	buf := make([]byte, headerSize+len(payload))
+	binary.BigEndian.PutUint32(buf[:headerSize], uint32(len(payload)))
+	copy(buf[headerSize:], payload)
+
+	// bufio.Writer를 매번 생성하는 것보다 직접 Write하는 것이 이 경우 더 빠를 수 있음
+	_, err := w.Write(buf)
+	return err
 }
 
+// readFrame은 헤더를 먼저 읽고 그 길이만큼 데이터를 읽어 반환합니다.
 func readFrame(r io.Reader) ([]byte, error) {
-	br := bufio.NewReader(r)
-
-	var hdr [4]byte
-	if _, err := io.ReadFull(br, hdr[:]); err != nil {
+	// 1. 헤더(4바이트) 읽기
+	header := make([]byte, headerSize)
+	if _, err := io.ReadFull(r, header); err != nil {
 		return nil, err
 	}
-	n := binary.BigEndian.Uint32(hdr[:])
-	if n > 10*1024*1024 {
-		return nil, fmt.Errorf("frame too large: %d", n)
+
+	// 2. 길이 해석
+	length := binary.BigEndian.Uint32(header)
+	if length > maxPayloadSize {
+		return nil, fmt.Errorf("frame size limit exceeded: %d", length)
 	}
 
-	buf := make([]byte, int(n))
-	if _, err := io.ReadFull(br, buf); err != nil {
+	// 3. 페이로드 읽기
+	payload := make([]byte, length)
+	if _, err := io.ReadFull(r, payload); err != nil {
 		return nil, err
 	}
-	return buf, nil
+
+	return payload, nil
 }
