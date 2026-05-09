@@ -84,4 +84,8 @@ $RECYCLE.BIN/
 *.lnk
 
 .env
+
+# Custom 
+.memo
+
 # End of https://www.toptal.com/developers/gitignore/api/go,windows,macos
