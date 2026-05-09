@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <input id="msg" placeholder="message" />
+  <button onclick="sendMessage()">Send</button>
+
+  <pre id="log"></pre>
+
+  <script>
+    const socket = new WebSocket("ws://localhost:8080/ws");
+
+    socket.onopen = () => {
+      log("connected");
+    };
+
+    socket.onmessage = (event) => {
+      log("server: " + event.data);
+    };
+
+    socket.onclose = () => {
+      log("disconnected");
+    };
+
+    function sendMessage() {
+      const input = document.getElementById("msg");
+      socket.send(input.value);
+      log("client: " + input.value);
+      input.value = "";
+    }
+
+    function log(message) {
+      document.getElementById("log").textContent += message + "\n";
+    }
+  </script>
+</body>
+</html>
